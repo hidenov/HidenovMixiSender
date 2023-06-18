@@ -1,8 +1,8 @@
 # HidenovMixiSender
-Mixi のつぶやきに投稿した内容を　Twitter に転送する GAS( Google Apps Script ) アプリです。
+mixi のつぶやきに投稿した内容を　Twitter に転送する GAS( Google Apps Script ) アプリです。
 
-- イーロン兄貴が Twitter API を無料ではまともに使えなくしたことに伴い、Twitter→Mixi へつぶやきを転送するのはとてもカネがかかるようになりました。
-- なので Mixi が Twiiter のつぶやきを Mixi に転送するサービスを止めてしまったことはしかたがないです．．．
+- イーロン兄貴が Twitter API を無料ではまともに使えなくしたことに伴い、Twitter→mixi へつぶやきを転送するのはとてもカネがかかるようになりました。
+- なので mixi が Twiiter のつぶやきを Mixi に転送するサービスを止めてしまったことはしかたがないです．．．
 - カネが無いのはイーロン兄貴も Mixi もひでのふも皆同じ。よってこの仕組みは無料で実現できています。
 - そうは言ってもハードルは結構高いです！覚悟は良いか！
 
@@ -11,12 +11,12 @@ Mixi のつぶやきに投稿した内容を　Twitter に転送する GAS( Goog
 - 有効なクレジットカード（ 2023.6.20 現在課金は行われていない ）
 - Docomo、AU、Softbank 何れかのキャリアが提供している MMS のメールアドレス
 - Google Drive / GMail のアカウント
-- Mixi のアカウント
+- mixi のアカウント
 - Twitter のアカウント
 ### 大雑把な準備の手順
 1. mixi Platform 利用登録を行う。
   下記の Partner Dashboard が表示できるようになればＯＫです。
-![Mixi Partner Dashboard](image.png)
+![mixi Partner Dashboard](image.png)
 2. Twitter の Developer Portal に登録を行う。
 　下記の Developer Portal が表示できるようになればＯＫです。
 ![Twitter Developer Portal](image-1.png)
