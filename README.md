@@ -48,10 +48,10 @@ mixi のつぶやきに投稿した内容を　Twitter に転送する GAS( Goog
      - App info の Callback URI / Redirect URL は下記の要領で設定する。
   <p>https://script.google.com/macros/d/ ここにIDを入れる /usercallback</p>
   ID は HidenovTwitterAuth の projects/ から /edit までの間の文字列を入れる
-8.  <p>config.json.org にクレデンシャル情報を記載する。</p>
 
   ![Alt text](image-7.png)
 
+16.  <p>config.json.org にクレデンシャル情報を記載する。</p>
 ### 大雑把な使い方
 1. デプロイした HidenovTwitterAuth の URL を開く。
 2. 上手く行けば URL が二つ表示されるので、それぞれ別窓で開いて Twitter の承認処理を行う。
