@@ -1,0 +1,21 @@
+{
+    "HidenovMixiSender": {
+        "mixi": {
+            "consumer_key": "Mixi で登録したサービスの Consumer Key を転記",
+            "consumer_secret": "Mixi で登録したサービスの Consumer Secret を転記",
+            "last_update": "",
+            "refresh_token": "",
+            "access_token": ""
+        },
+        "twitter": {
+            "consumer_key_v1": "Twitter で登録したアプリの Consumer Keys を転記",
+            "consumer_secret_v1": "Twitter で登録したアプリの Consumer Secret を転記",            
+            "client_id_v2": "Twitter で登録したアプリの Client ID を転記",
+            "client_secret_v2": "Twitter で登録したアプリの Client Secret を転記",
+            "code_challenge": "",
+            "code_verifier": "",
+            "oauth_v1": {},
+            "oauth_v2": {}
+        }
+    }
+}
