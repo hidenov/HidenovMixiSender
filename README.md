@@ -34,21 +34,21 @@ mixi のつぶやきに投稿した内容を　Twitter に転送する GAS( Goog
 6. 手順 5. で作成したフォルダのアドレスバーから、folder/ 以降の文字列を　folder_id としてメモする。
  ![Alt text](image-4.png)
 7. <p>手順 5. で作成したフォルダに、手順 4.でダウンロードした config.json.org をアップロードする。</p>
-8.  <p>config.json.org にクレデンシャル情報を記載する。</p>
-9.  <p>config.json.org をコピーし、config.json にリネームする。</p>
-10. 手順 5. で作成したフォルダで、Google Apps Script のプロジェクトを新しく作る。
+8.  <p>config.json.org をコピーし、config.json にリネームする。</p>
+9. 手順 5. で作成したフォルダで、Google Apps Script のプロジェクトを新しく作る。
   ![Alt text](image-3.png)
-11.  <p>スクリプト名を HidenovMixiSender 変更し、手順 4.でダウンロードした HidenovMixiSender.gs の内容をコピペする。</p> 
-12. スクリプトプロパティに folder_id を作成し、値に手順 6. でメモした folder_id を転記する。
-13. プロジェクトを新しく Web アプリとしてデプロイする。デプロイした Web アプリの URL はメモしておく。
-14.  手順 10. ～ 13. を他の３つの .gs ファイルに対しても同様に実行する。
-15.  <p>Mixi の Partner Dashboard から新規サービスを追加する。この時、リダイレクト URL には手順 13. でメモした HidenovMixiSenderRedirect.gs の Web アプリの URL を設定する。</p>
-16.  <p>Twitter の Delevper Portal から新しいアプリを作成する。この時、
+10.  <p>スクリプト名を HidenovMixiSender 変更し、手順 4.でダウンロードした HidenovMixiSender.gs の内容をコピペする。</p> 
+11. スクリプトプロパティに folder_id を作成し、値に手順 6. でメモした folder_id を転記する。
+12. プロジェクトを新しく Web アプリとしてデプロイする。デプロイした Web アプリの URL はメモしておく。
+13.  手順 9. ～ 12. を他の３つの .gs ファイルに対しても同様に実行する。
+14.  <p>Mixi の Partner Dashboard から新規サービスを追加する。この時、リダイレクト URL には手順 13. でメモした HidenovMixiSenderRedirect.gs の Web アプリの URL を設定する。</p>
+15.  <p>Twitter の Delevper Portal から新しいアプリを作成する。この時、
      - App psermissions は　Read and Write を選ぶ
      - Type of App は Web App, Automated App or Bot を選ぶ
      - App info の Callback URI / Redirect URL は下記の要領で設定する。
   <p>https://script.google.com/macros/d/ ここにIDを入れる /usercallback</p>
   ID は HidenovTwitterAuth の projects/ から /edit までの間の文字列を入れる
+8.  <p>config.json.org にクレデンシャル情報を記載する。</p>
 
   ![Alt text](image-7.png)
 
