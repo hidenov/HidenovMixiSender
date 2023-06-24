@@ -22,25 +22,27 @@ function main()
           const service_v1 = getServiceV1(config);
           if (service_v1.hasAccess())
           {
+            let rc = true ;
             const update = getTimeline(config);
             if( update.timelines.length > 0 )
             {
               console.log("つぶやきが更新されました");
               const photo = getPhoto(config);
-              const rc = PostTwitter(config, update, photo) ;
+              rc = PostTwitter(config, update, photo) ;
               if( rc === true )
               {
                 console.log("Twitter に投稿しました");
               }
-              else
-              {
-                throw new Error("Twitter に投稿に失敗しました");
-              }
             }
             saveConfig(config);
+            if( rc === false )
+            {
+              throw new Error("Twitter に投稿に失敗しました");
+            }
           }
           else
           {
+            saveConfig(config);
             throw new Error("Twitter V1 のアクセストークンが無効だにゃん。");
           }
         }
@@ -57,7 +59,6 @@ function main()
   }
   catch(error)
   {
-    console.log("Exception / Reason = "+error);
     throw error;
   }
 }
@@ -188,7 +189,7 @@ function getTimeline(config)
           let timeline = {};
           timeline.created_at = created_at;
           timeline.photo_id = getPhotoIdFromText(item.text);
-          timeline.text = timeline.photo_id===null ? item.text : getText(item.text);
+          timeline.text = getText( timeline.photo_id,item.text);
           update.timelines.unshift(timeline) ;
         }
       }
@@ -218,11 +219,19 @@ function getPhotoIdFromText(urlString)
   return null;
 }
 
-// urlString に含まれる photo の URL が含まれているときに、URL 部分を取り除く。
-function getText(urlString)
+// urlString に含まれる photo の URL が含まれているときに、URL 部分を取り除き、文字列の長すぎる部分を切り詰める。
+function getText(photoID, urlString)
 {
-  const end_index = urlString.indexOf(' ');
-  return urlString.substr(end_index);
+  let temp_text = photoID === null ? urlString : urlString.substr(urlString.indexOf(' '));
+  let adjusted_text = "", count = 0;
+
+  for (let i = 0; i < temp_text.length && count < 280; i++)
+  {
+    let char = temp_text[i], code = char.charCodeAt(0);
+    count += ((code >= 0x00 && code < 0x81) || code == 0xf8f0 || (code >= 0xff61 && code < 0xffa0) || (code >= 0xf8f1 && code < 0xf8f4)) ? 1 : 2;
+    adjusted_text += char;
+  }
+  return adjusted_text;
 }
 
 function getPhoto(config)
@@ -505,4 +514,13 @@ function checkConfig( config )
     console.log(config.error);
   }
   return false;
+}
+
+
+function reset()
+{
+  PropertiesService.getScriptProperties().deleteProperty("config", "");
+  PropertiesService.getScriptProperties().deleteProperty("oauth1.twitter", "");
+  PropertiesService.getScriptProperties().deleteProperty("oauth2.twitter", ""); 
+  console.log("スクリプトプロパティを削除しました。再度認証処理の実行が必要です");
 }
