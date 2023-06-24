@@ -27,28 +27,38 @@ function main()
             {
               console.log("つぶやきが更新されました");
               const photo = getPhoto(config);
-              if( PostTwitter(config, update, photo) === true )
+              const rc = PostTwitter(config, update, photo) ;
+              if( rc === true )
               {
                 console.log("Twitter に投稿しました");
+              }
+              else
+              {
+                throw new Error("Twitter に投稿に失敗しました");
               }
             }
             saveConfig(config);
           }
           else
           {
-            console.log("Twitter V1 のアクセストークンが無効だにゃん。") ;
+            throw new Error("Twitter V1 のアクセストークンが無効だにゃん。");
           }
         }
         else
         {
-          console.log("Twitter V2 のアクセストークンが無効だにゃん。") ;
+          throw new Error("Twitter V2 のアクセストークンが無効だにゃん。");
         }
       }
+    }
+    else
+    {
+      throw new Error(config.error);
     }
   }
   catch(error)
   {
     console.log("Exception / Reason = "+error);
+    throw error;
   }
 }
 
@@ -75,7 +85,7 @@ function updateMixiToken(config)
   }
   else
   {
-    console.log("Mixi から新しいトークンが取得できなかったにゃん。多分 reflesh_token が古いので、Auth からやり直すにゃん。");
+    throw new Error("mixi から新しいトークンが取得できなかったにゃん。多分 reflesh_token が古いので、Auth からやり直すにゃん。");
   }
   return false;
 }
@@ -146,6 +156,7 @@ function getTimeline(config)
     };
 
     const json = UrlFetchApp.fetch(get_timeline_url, options).getContentText();
+/* for debug
     const folder = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty("folder_id")) ;
     const files = folder.getFilesByName("timeline.json");
     if (files.hasNext())
@@ -157,6 +168,7 @@ function getTimeline(config)
     {
       folder.createFile("timeline.json", json);
     }
+*/
     const timeline_json = JSON.parse(json);
     let update = {latest_update:new Date(0), timelines:[]};
     const last_update = new Date(config.HidenovMixiSender.mixi.last_update);
@@ -290,7 +302,7 @@ function uploadImage(config, imgUrl)
   }
   catch(error)
   {
-    console.log( "Exception in uploadImage / Reason = " + error );
+    throw new Error ( "Exception in uploadImage / Reason = " + error );
   }
   return null;
 }
@@ -326,6 +338,10 @@ function PostTweet(accessTokenV2, timelineText, mediaIDString )
         });
     const result = JSON.parse(response.getContentText());
     console.log(JSON.stringify(result, null, 4));
+    if( result.hasOwnProperty("errors") == true )
+    {
+      rc = false ;
+    }
   }
   catch(error)
   {
@@ -400,6 +416,7 @@ function loadConfig()
 
 function saveConfig( config )
 {
+  let error = "";
   for( let retry = 10; retry > 0; retry-- )
   {
     try
@@ -409,8 +426,13 @@ function saveConfig( config )
     }
     catch( error_property )
     {
-      console.log( "Exception in saveConfig( SaveProperty ) / Retry = " + retry.toString() + " / Reason = " + error_property ) ;
+      error = "Exception in saveConfig( SaveProperty ) / Retry = " + retry.toString() + " / Reason = " + error_property;
+      console.log( error ) ;
       Utilities.sleep(3000);
+    }
+    if( retry === 0 )
+    {
+      throw new Error( error ) ;
     }
   }
 
@@ -438,8 +460,13 @@ function saveConfig( config )
         }
         catch( error_file )
         {
-          console.log( "Exception in saveConfig / Retry = " + retry.toString() + " / Reason = " + error_file ) ;
+          error = "Exception in saveConfig( SaveFile ) / Retry = " + retry.toString() + " / Reason = " + error_file ;
+          console.log( error ) ;
           Utilities.sleep(3000);
+        }
+        if( retry === 0 )
+        {
+          throw new Error( error ) ;
         }
       }
     }
