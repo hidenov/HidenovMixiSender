@@ -30,7 +30,6 @@ function main()
               if( tls.tls !== undefined)
               {
                 const updates = getUpdates(config, tls);
-                console.log( JSON.stringify(updates, null, 4));
                 if( updates.timelines.length > 0 )
                 {
                   console.log("つぶやきが更新されました");
@@ -43,8 +42,8 @@ function main()
                   {
                     throw new Error("Twitter に投稿に失敗しました");
                   }
+                  saveJSONFile("tls.json", tls) ;
                 }
-                saveJSONFile("tls.json", tls) ;
               }
             }
             else
@@ -199,7 +198,7 @@ function getTimelines(config, prevTLs)
         tls.tls[item.id] = {};
         tls.tls[item.id].created_at = item.created_at ;
         tls.tls[item.id].text = getText(getPhotoIdFromText(item.text),item.text);
-        tls.tls[item.id].twitter_id = getTwitterIDfromPrevTLs(item.user.id, null, prevTLs);
+        tls.tls[item.id].twitter_id = getTwitterIDfromPrevTLs(item.id, null, prevTLs);
         tls.tls[item.id].comments = {} ;
         if(item.reply_count > 0)
         {
@@ -238,9 +237,21 @@ function getTimelines(config, prevTLs)
 function getTwitterIDfromPrevTLs( itemID, commentID, prevTLs)
 {
   // 前回の Timeline に紐づく Twitter の ID を返す。存在しなければ長さ 0 の文字列を返す。
-  const twitter_id = prevTLs?.tls?.[itemID]?.twitter_id !== undefined
-    ? prevTLs.tls[itemID].twitter_id
-    : (prevTLs?.tls?.[itemID]?.comments?.[commentID]?.twitter_id || "");
+  let twitter_id = "";
+  if(commentID===null)
+  {
+    if(prevTLs?.tls?.[itemID]?.twitter_id !== undefined)
+    {
+      twitter_id = prevTLs.tls[itemID].twitter_id;
+    }
+  }
+  else
+  {
+    if(prevTLs?.tls?.[itemID]?.comments?.[commentID]?.twitter_id !== undefined)
+    {
+      twitter_id =prevTLs.tls[itemID].comments[commentID].twitter_id;
+    }
+  }
   return twitter_id;
 }
 
