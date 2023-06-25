@@ -189,6 +189,7 @@ function getTimelines(config, prevTLs)
     }
 */
     const timeline_json = JSON.parse(timeline);
+    let reply_id = "";
     if(Array.isArray(timeline_json)===true)
     {
       for (let i = 0; i < timeline_json.length; i++)
@@ -199,6 +200,7 @@ function getTimelines(config, prevTLs)
         tls.tls[item.id].created_at = item.created_at ;
         tls.tls[item.id].text = getText(getPhotoIdFromText(item.text),item.text);
         tls.tls[item.id].twitter_id = getTwitterIDfromPrevTLs(item.id, null, prevTLs);
+        reply_id = tls.tls[item.id].twitter_id;
         tls.tls[item.id].comments = {} ;
         if(item.reply_count > 0)
         {
@@ -214,7 +216,9 @@ function getTimelines(config, prevTLs)
                 tls.tls[item.id].comments[comment.id] = {};
                 tls.tls[item.id].comments[comment.id].created_at = comment.created_at ;
                 tls.tls[item.id].comments[comment.id].text = comment.text
+                tls.tls[item.id].comments[comment.id].reply_id = reply_id ;
                 tls.tls[item.id].comments[comment.id].twitter_id = getTwitterIDfromPrevTLs(item.id, comment.id, prevTLs);
+                reply_id = tls.tls[item.id].comments[comment.id].twitter_id ;
               }
             }
           }
@@ -308,6 +312,7 @@ function getUpdates(config, TLs)
         let timeline = {};
         timeline.mixi_id = mixi_id;
         timeline.comment_id = "";
+        timeline.reply_id = "";
         timeline.created_at = created_at;
         timeline.photo_id = getPhotoIdFromText(tl.text);
         timeline.text = getText(timeline.photo_id,tl.text);
@@ -329,8 +334,9 @@ function getUpdates(config, TLs)
             let timeline = {};
             timeline.mixi_id = mixi_id;
             timeline.comment_id = comment_id;
+            timeline.reply_id = comment.reply_id;
             timeline.created_at = created_at;
-            timeline.photo_id = "";
+            timeline.photo_id = null;
             timeline.text = comment.text;
             updates.timelines.unshift(timeline) ;
           }        
@@ -370,10 +376,12 @@ function getPhoto(config)
 function postTwitter(config, updates, photo, TLs)
 {
   let rc = true ;
+  let reply_id = "";
   const oauth_v2_json = JSON.parse(config.HidenovMixiSender.twitter.oauth_v2) ;
   for (let i in updates.timelines)
   {
     let media_id_string = null;
+
     console.log("つぶやき : 投稿 = " + updates.timelines[i].created_at + " / text = " + updates.timelines[i].text + ( updates.timelines[i].photo_id !== null ? " / photo_url = " + photo[updates.timelines[i].photo_id] : "")) ;
     if(updates.timelines[i].photo_id !== null) // Attach Image
     {
@@ -386,10 +394,17 @@ function postTwitter(config, updates, photo, TLs)
         console.log("無効な Photo ID にゃん。/ Photo ID = " + updates.timelines[i].photo_id) ;
       }
     }
-    const twitter_id = postTweet(oauth_v2_json.access_token, updates.timelines[i].text, media_id_string) ;
+    if(updates.timelines[i].comment_id.length > 0)
+    {
+      if(updates.timelines[i].reply_id.length > 0)
+      {
+        reply_id = updates.timelines[i].reply_id ;
+      }
+    }
+    const twitter_id = postTweet(oauth_v2_json.access_token, updates.timelines[i].text, media_id_string, reply_id) ;
     if(twitter_id.length > 0)
     {
-      if(updates.timelines[i].comment_id.length > 0 )
+      if(updates.timelines[i].comment_id.length > 0)
       {
         TLs.tls[updates.timelines[i].mixi_id].comments[updates.timelines[i].comment_id].twitter_id = twitter_id;
       }
@@ -397,6 +412,7 @@ function postTwitter(config, updates, photo, TLs)
       {
         TLs.tls[updates.timelines[i].mixi_id].twitter_id = twitter_id;
       }
+      reply_id = twitter_id;
     }
     else
     {
@@ -435,26 +451,23 @@ function uploadImage(config, imgUrl)
   return null;
 }
 
-function postTweet(accessTokenV2, timelineText, mediaIDString, tweetInfo )
+function postTweet(accessTokenV2, timelineText, mediaIDString, replyID )
 {
   let twitter_id = "";
   try
   {
     const url = `https://api.twitter.com/2/tweets`;
-    let payload = {};
-    if(mediaIDString === null)
+    let payload = {"text" : timelineText};
+    
+    if(mediaIDString !== null)
     {
-      payload = {
-          text: timelineText
-      };
+      payload.media = {"media_ids": [mediaIDString]};
     }
-    else
+    if(replyID.length > 0)
     {
-      payload = {
-          text: timelineText,
-          media : {media_ids: [mediaIDString]}
-      };
+      payload.reply = { "in_reply_to_tweet_id" : replyID };
     }
+
     const response = UrlFetchApp.fetch(url, {
           method: 'POST',
           'contentType': 'application/json',
