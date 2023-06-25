@@ -4,62 +4,77 @@
 
 function main()
 { 
-  try
+  console.log("処理を開始しました");
+  let config = loadConfig();
+  if( checkConfig(config) === true )
   {
-    console.log("処理を開始しました");
-    let config = loadConfig();
-    if( checkConfig(config) === true )
+    const prev_tls = loadJSONFile("tls.json", {}) ;
+    if( prev_tls.error === undefined )
     {
-      PropertiesService.getScriptProperties().setProperty("oauth1.twitter", config.HidenovMixiSender.twitter.oauth_v1);
-      PropertiesService.getScriptProperties().setProperty("oauth2.twitter", config.HidenovMixiSender.twitter.oauth_v2);
-      if( updateMixiToken(config) === true )
+      try
       {
-        const service_v2 = getServiceV2(config);
-        if (service_v2.hasAccess())
+        PropertiesService.getScriptProperties().setProperty("oauth1.twitter", config.HidenovMixiSender.twitter.oauth_v1);
+        PropertiesService.getScriptProperties().setProperty("oauth2.twitter", config.HidenovMixiSender.twitter.oauth_v2);
+        if( updateMixiToken(config) === true )
         {
-          service_v2.refresh();
-          config.HidenovMixiSender.twitter.oauth_v2 = PropertiesService.getScriptProperties().getProperty("oauth2.twitter");
-          const service_v1 = getServiceV1(config);
-          if (service_v1.hasAccess())
+          const service_v2 = getServiceV2(config);
+          if (service_v2.hasAccess())
           {
-            let rc = true ;
-            const update = getTimeline(config);
-            if( update.timelines.length > 0 )
+            service_v2.refresh();
+            config.HidenovMixiSender.twitter.oauth_v2 = PropertiesService.getScriptProperties().getProperty("oauth2.twitter");
+            saveConfig(config); // for debug
+            const service_v1 = getServiceV1(config);
+            if (service_v1.hasAccess())
             {
-              console.log("つぶやきが更新されました");
-              const photo = getPhoto(config);
-              rc = PostTwitter(config, update, photo) ;
-              if( rc === true )
+              let tls = getTimelines(config, prev_tls);
+              if( tls.tls !== undefined)
               {
-                console.log("Twitter に投稿しました");
+                const updates = getUpdates(config, tls);
+                console.log( JSON.stringify(updates, null, 4));
+                if( updates.timelines.length > 0 )
+                {
+                  console.log("つぶやきが更新されました");
+                  const photo = getPhoto(config);
+                  if( postTwitter(config, updates, photo, tls) === true )
+                  {
+                    console.log("Twitter に投稿しました");
+                  }
+                  else
+                  {
+                    throw new Error("Twitter に投稿に失敗しました");
+                  }
+                }
+                saveJSONFile("tls.json", tls) ;
               }
             }
-            saveConfig(config);
-            if( rc === false )
+            else
             {
-              throw new Error("Twitter に投稿に失敗しました");
+              throw new Error("Twitter V1 のアクセストークンが無効だにゃん。");
             }
           }
           else
           {
-            saveConfig(config);
-            throw new Error("Twitter V1 のアクセストークンが無効だにゃん。");
+            throw new Error("Twitter V2 のアクセストークンが無効だにゃん。");
           }
         }
-        else
-        {
-          throw new Error("Twitter V2 のアクセストークンが無効だにゃん。");
-        }
+      }
+      catch(error)
+      {
+        throw error;
+      }
+      finally
+      {
+        saveConfig(config);
       }
     }
     else
     {
-      throw new Error(config.error);
+      throw new Error(prev_tls.error);
     }
   }
-  catch(error)
+  else
   {
-    throw error;
+    throw new Error(config.error);
   }
 }
 
@@ -142,55 +157,68 @@ function pkceChallengeVerifier(config)
   return { code_challenge : code_challenge, code_verifier : code_verifier };
 }
 
-function getTimeline(config)
+function getTimelines(config, prevTLs)
 {
-    const get_timeline_url = "https://api.mixi-platform.com/2/voice/statuses/@me/user_timeline";
-    const options = {
-      'method': 'GET',
-      'headers': {
-        'Authorization': 'Bearer ' + config.HidenovMixiSender.mixi.access_token
-      },
-      'parameters': {
-        "attach_photo": "true",
-        "trim_user":"true"
-      }
-    };
+  const get_timeline_url = "https://api.mixi-platform.com/2/voice/statuses/@me/user_timeline";
+  const get_comment_url = "https://api.mixi-platform.com/2/voice/replies/";
+  const options = {
+    "method": "GET",
+    "headers": {
+      "Authorization": "Bearer " + config.HidenovMixiSender.mixi.access_token
+    },
+    "parameters": {
+      "attach_photo": "true",
+      "trim_user":"true"
+    }
+  };
+  let tls = {"tls":{}};
 
-    const json = UrlFetchApp.fetch(get_timeline_url, options).getContentText();
+  try
+  {
+    const timeline = UrlFetchApp.fetch(get_timeline_url, options).getContentText();
 /* for debug
     const folder = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty("folder_id")) ;
     const files = folder.getFilesByName("timeline.json");
     if (files.hasNext())
     {
       let file = files.next();
-      file.setContent(json);
+      file.setContent(timeline);
     }
     else
     {
-      folder.createFile("timeline.json", json);
+      folder.createFile("timeline.json", timeline);
     }
 */
-    const timeline_json = JSON.parse(json);
-    let update = {latest_update:new Date(0), timelines:[]};
-    const last_update = new Date(config.HidenovMixiSender.mixi.last_update);
-    if(Array.isArray(timeline_json))
+    const timeline_json = JSON.parse(timeline);
+    if(Array.isArray(timeline_json)===true)
     {
       for (let i = 0; i < timeline_json.length; i++)
       {
         const item = timeline_json[i];
-        const created_at = new Date(item.created_at);
-        if( update.latest_update<created_at )
+        tls.tls.user_id = item.user.id;
+        tls.tls[item.id] = {};
+        tls.tls[item.id].created_at = item.created_at ;
+        tls.tls[item.id].text = getText(getPhotoIdFromText(item.text),item.text);
+        tls.tls[item.id].twitter_id = getTwitterIDfromPrevTLs(item.user.id, null, prevTLs);
+        tls.tls[item.id].comments = {} ;
+        if(item.reply_count > 0)
         {
-          update.latest_update = created_at;
-          config.HidenovMixiSender.mixi.last_update = item.created_at;
-        }
-        if(last_update<created_at)
-        {
-          let timeline = {};
-          timeline.created_at = created_at;
-          timeline.photo_id = getPhotoIdFromText(item.text);
-          timeline.text = getText( timeline.photo_id,item.text);
-          update.timelines.unshift(timeline) ;
+          const comments = UrlFetchApp.fetch(get_comment_url+item.id.toString(), options).getContentText();
+          const comments_json = JSON.parse(comments);
+          if(Array.isArray(comments_json) === true)
+          {
+            for (let j = 0; j < comments_json.length; j++)
+            {
+              const comment = comments_json[j];
+              if( comment.user.id === tls.tls.user_id)
+              {
+                tls.tls[item.id].comments[comment.id] = {};
+                tls.tls[item.id].comments[comment.id].created_at = comment.created_at ;
+                tls.tls[item.id].comments[comment.id].text = comment.text
+                tls.tls[item.id].comments[comment.id].twitter_id = getTwitterIDfromPrevTLs(item.id, comment.id, prevTLs);
+              }
+            }
+          }
         }
       }
     }
@@ -198,7 +226,22 @@ function getTimeline(config)
     {
       console.log("取得したつぶやきが配列になってないにゃん。たぶんつぶやきが存在しないか、応答の形式がおかしいにゃん");
     }
-    return update;
+  }
+  catch( error )
+  {
+    console.log("例外を握りつぶしています / Exception = " + error + "\n" + error.stack);
+    tls = {};
+  }
+  return tls;
+}
+
+function getTwitterIDfromPrevTLs( itemID, commentID, prevTLs)
+{
+  // 前回の Timeline に紐づく Twitter の ID を返す。存在しなければ長さ 0 の文字列を返す。
+  const twitter_id = prevTLs?.tls?.[itemID]?.twitter_id !== undefined
+    ? prevTLs.tls[itemID].twitter_id
+    : (prevTLs?.tls?.[itemID]?.comments?.[commentID]?.twitter_id || "");
+  return twitter_id;
 }
 
 function getPhotoIdFromText(urlString)
@@ -234,6 +277,59 @@ function getText(photoID, urlString)
   return adjusted_text;
 }
 
+function getUpdates(config, TLs)
+{
+  let updates = {latest_update:new Date(0), timelines:[]};
+  const last_update = new Date(config.HidenovMixiSender.mixi.last_update);
+  for (let mixi_id in TLs.tls)
+  {
+    if (TLs.tls.hasOwnProperty(mixi_id))
+    {
+      let tl = TLs.tls[mixi_id];
+      const created_at = new Date(tl.created_at);
+      if( updates.latest_update<created_at )
+      {
+        updates.latest_update = created_at;
+        config.HidenovMixiSender.mixi.last_update = tl.created_at;
+      }
+      if(last_update<created_at)
+      {
+        let timeline = {};
+        timeline.mixi_id = mixi_id;
+        timeline.comment_id = "";
+        timeline.created_at = created_at;
+        timeline.photo_id = getPhotoIdFromText(tl.text);
+        timeline.text = getText(timeline.photo_id,tl.text);
+        updates.timelines.unshift(timeline) ;
+      }
+      for (let comment_id in TLs.tls[mixi_id].comments)
+      {
+        if (TLs.tls[mixi_id].comments.hasOwnProperty(comment_id))
+        {
+          let comment = TLs.tls[mixi_id].comments[comment_id];
+          const comment_created_at = new Date(comment.created_at);
+          if( updates.latest_update<comment_created_at )
+          {
+            updates.latest_update = comment_created_at;
+            config.HidenovMixiSender.mixi.last_update = comment.created_at;
+          }
+          if(last_update<comment_created_at)
+          {
+            let timeline = {};
+            timeline.mixi_id = mixi_id;
+            timeline.comment_id = comment_id;
+            timeline.created_at = created_at;
+            timeline.photo_id = "";
+            timeline.text = comment.text;
+            updates.timelines.unshift(timeline) ;
+          }        
+        }
+      }
+    }
+  }
+  return updates 
+}
+
 function getPhoto(config)
 {
     const get_photo_url = "https://api.mixi-platform.com/2/photo/mediaItems/@me/@self/@default";
@@ -260,26 +356,38 @@ function getPhoto(config)
     return photo;
 }
 
-function PostTwitter(config, update, photo)
+function postTwitter(config, updates, photo, TLs)
 {
   let rc = true ;
   const oauth_v2_json = JSON.parse(config.HidenovMixiSender.twitter.oauth_v2) ;
-  for (let i in update.timelines)
+  for (let i in updates.timelines)
   {
     let media_id_string = null;
-    console.log("つぶやき : 投稿 = " + update.timelines[i].created_at + " / text = " + update.timelines[i].text + ( update.timelines[i].photo_id !== null ? " / photo_url = " + photo[update.timelines[i].photo_id] : "")) ;
-    if(update.timelines[i].photo_id !== null) // Attach Image
+    console.log("つぶやき : 投稿 = " + updates.timelines[i].created_at + " / text = " + updates.timelines[i].text + ( updates.timelines[i].photo_id !== null ? " / photo_url = " + photo[updates.timelines[i].photo_id] : "")) ;
+    if(updates.timelines[i].photo_id !== null) // Attach Image
     {
-      if(photo[update.timelines[i].photo_id] !== undefined)
+      if(photo[updates.timelines[i].photo_id] !== undefined)
       {
-        media_id_string = uploadImage(config, photo[update.timelines[i].photo_id])
+        media_id_string = uploadImage(config, photo[updates.timelines[i].photo_id])
       }
       else
       {
-        console.log("無効な Photo ID にゃん。/ Photo ID = " + update.timelines[i].photo_id) ;
+        console.log("無効な Photo ID にゃん。/ Photo ID = " + updates.timelines[i].photo_id) ;
       }
     }
-    if( PostTweet(oauth_v2_json.access_token, update.timelines[i].text, media_id_string) === false )
+    const twitter_id = postTweet(oauth_v2_json.access_token, updates.timelines[i].text, media_id_string) ;
+    if(twitter_id.length > 0)
+    {
+      if(updates.timelines[i].comment_id.length > 0 )
+      {
+        TLs.tls[updates.timelines[i].mixi_id].comments[updates.timelines[i].comment_id].twitter_id = twitter_id;
+      }
+      else
+      {
+        TLs.tls[updates.timelines[i].mixi_id].twitter_id = twitter_id;
+      }
+    }
+    else
     {
       rc = false ;
       break;
@@ -316,9 +424,9 @@ function uploadImage(config, imgUrl)
   return null;
 }
 
-function PostTweet(accessTokenV2, timelineText, mediaIDString )
+function postTweet(accessTokenV2, timelineText, mediaIDString, tweetInfo )
 {
-  let rc = true;
+  let twitter_id = "";
   try
   {
     const url = `https://api.twitter.com/2/tweets`;
@@ -347,17 +455,16 @@ function PostTweet(accessTokenV2, timelineText, mediaIDString )
         });
     const result = JSON.parse(response.getContentText());
     console.log(JSON.stringify(result, null, 4));
-    if( result.hasOwnProperty("errors") == true )
+    if( result.hasOwnProperty("data") === true )
     {
-      rc = false ;
+      twitter_id = result.data.id;
     }
   }
   catch(error)
   {
     console.log( "Exception in PostTweet / Reason = " + error );
-    rc = false;
   }
-  return rc ;
+  return twitter_id ;
 }
 
 function loadConfig()
@@ -373,54 +480,62 @@ function loadConfig()
     }
     else
     {
-      error = "config.json の内容が整形式の json じゃなかったにゃん。";
+      return { "error" : "config.json の内容が整形式の json じゃなかったにゃん。" };
     }
   }
-  else
+  return loadJSONFile("config.json", null);
+}
+
+function loadJSONFile(fileName, defaultJSON)
+{
+  const folder_id = PropertiesService.getScriptProperties().getProperty("folder_id");
+  if( folder_id !== null )
   {
-    const folder_id = PropertiesService.getScriptProperties().getProperty("folder_id");
-    if( folder_id !== null )
+    const files = DriveApp.getFolderById(folder_id).getFilesByName(fileName);
+    if(files.hasNext())
     {
-      const files = DriveApp.getFolderById(folder_id).getFilesByName("config.json");
-      if(files.hasNext())
+      const file = files.next();
+      if (file.getMimeType() === 'application/json')
       {
-        const file = files.next();
-        if (file.getMimeType() === 'application/json')
+        const content = file.getBlob().getDataAsString();
+        if(content !== null)
         {
-          const content = file.getBlob().getDataAsString();
-          if(content !== null)
+          const json = JSON.parse(content);
+          if( json !== null )
           {
-            const json = JSON.parse(content);
-            if( json !== null )
-            {
-              return json;
-            }
-            else
-            {
-              error = "config.json の内容が整形式の json じゃなかったにゃん。";
-            }
+            return json;
           }
           else
           {
-            error = "config.json が読み取れなかったにゃん。たぶん権限の問題があるにゃん。";
+            return { "error" : fileName + " の内容が整形式の json じゃなかったにゃん" };
           }
         }
         else
         {
-          error = "config.json が json 形式で保存されてないにゃん";
+          return { "error" : fileName + " が読み取れなかったにゃん。たぶん権限の問題があるにゃん" };
         }
       }
       else
       {
-        error = "Folder ID = " + folder_id + " のフォルダ内に config.json ファイルが見つからないにゃん";
+        return { "error" : fileName + " が json 形式で保存されてないにゃん" };
       }
     }
     else
     {
-      error = "スクリプトプロパティに folder_id の設定が欠けてるにゃん";
+      if( defaultJSON !== null )
+      {
+        return defaultJSON;
+      }
+      else
+      {
+        return { "error" : "Folder ID = " + folder_id + " のフォルダ内に " + fileName + " ファイルが見つからないにゃん" };
+      }
     }
   }
-  return {error:error};
+  else
+  {
+    return { "error" : "スクリプトプロパティに folder_id の設定が欠けてるにゃん" };
+  }
 }
 
 function saveConfig( config )
@@ -435,23 +550,26 @@ function saveConfig( config )
     }
     catch( error_property )
     {
-      error = "Exception in saveConfig( SaveProperty ) / Retry = " + retry.toString() + " / Reason = " + error_property;
-      console.log( error ) ;
+      if(retry === 0)
+      {
+        error = "Exception in saveConfig / Retry = " + retry.toString() + " / Reason = " + error_property;
+        console.log( error ) ;
+      }
       Utilities.sleep(3000);
     }
-    if( retry === 0 )
-    {
-      throw new Error( error ) ;
-    }
   }
+  saveJSONFile("config.json", config)
+}
 
+function saveJSONFile(fileName, json)
+{
   const folder_id = PropertiesService.getScriptProperties().getProperty("folder_id");
   if( folder_id !== null )
   {
     const folder = DriveApp.getFolderById(folder_id) ;
     if( folder !== null )
     {
-      const files = folder.getFilesByName("config.json");
+      const files = folder.getFilesByName(fileName);
       while (files.hasNext())
       {
         let file = files.next();
@@ -464,18 +582,17 @@ function saveConfig( config )
       {
         try
         {
-          folder.createFile("config.json", JSON.stringify(config, null, "    "));
+          folder.createFile(fileName, JSON.stringify(json, null, "    "));
           break;
         }
         catch( error_file )
         {
-          error = "Exception in saveConfig( SaveFile ) / Retry = " + retry.toString() + " / Reason = " + error_file ;
-          console.log( error ) ;
+          if(retry === 0)
+          {
+            error = "Exception in saveConfig( " + fileName + " ) / Reason = " + error_file + "\n" + JSON.stringify(json, null, "    ") ;
+            throw new Error( error ) ;
+          }
           Utilities.sleep(3000);
-        }
-        if( retry === 0 )
-        {
-          throw new Error( error ) ;
         }
       }
     }
@@ -519,8 +636,8 @@ function checkConfig( config )
 
 function reset()
 {
-  PropertiesService.getScriptProperties().deleteProperty("config", "");
-  PropertiesService.getScriptProperties().deleteProperty("oauth1.twitter", "");
-  PropertiesService.getScriptProperties().deleteProperty("oauth2.twitter", ""); 
+  PropertiesService.getScriptProperties().deleteProperty("config");
+  PropertiesService.getScriptProperties().deleteProperty("oauth1.twitter");
+  PropertiesService.getScriptProperties().deleteProperty("oauth2.twitter"); 
   console.log("スクリプトプロパティを削除しました。再度認証処理の実行が必要です");
 }
