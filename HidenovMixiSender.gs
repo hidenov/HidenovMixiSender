@@ -6,35 +6,35 @@ function main()
 { 
   console.log("処理を開始しました");
   let config = loadConfig();
-  if( checkConfig(config) === true )
+  if(checkConfig(config) === true)
   {
     const prev_tls = loadJSONFile("tls.json", {}) ;
-    if( prev_tls.error === undefined )
+    if(prev_tls.error === undefined)
     {
       try
       {
         PropertiesService.getScriptProperties().setProperty("oauth1.twitter", config.HidenovMixiSender.twitter.oauth_v1);
         PropertiesService.getScriptProperties().setProperty("oauth2.twitter", config.HidenovMixiSender.twitter.oauth_v2);
-        if( updateMixiToken(config) === true )
+        if(updateMixiToken(config) === true)
         {
           const service_v2 = getServiceV2(config);
-          if (service_v2.hasAccess())
+          if(service_v2.hasAccess())
           {
             service_v2.refresh();
             config.HidenovMixiSender.twitter.oauth_v2 = PropertiesService.getScriptProperties().getProperty("oauth2.twitter");
-            saveConfig(config); // for debug
+            // saveConfig(config); // for debug
             const service_v1 = getServiceV1(config);
-            if (service_v1.hasAccess())
+            if(service_v1.hasAccess())
             {
               let tls = getTimelines(config, prev_tls);
-              if( tls.tls !== undefined)
+              if(tls.tls !== undefined)
               {
                 const updates = getUpdates(config, tls);
-                if( updates.timelines.length > 0 )
+                if(updates.timelines.length > 0)
                 {
                   console.log("つぶやきが更新されました");
                   const photo = getPhoto(config);
-                  if( postTwitter(config, updates, photo, tls) === true )
+                  if(postTwitter(config, updates, photo, tls) === true)
                   {
                     console.log("Twitter に投稿しました");
                   }
@@ -48,12 +48,12 @@ function main()
             }
             else
             {
-              throw new Error("Twitter V1 のアクセストークンが無効だにゃん。");
+              throw new Error("Twitter V1 のアクセストークンが無効だにゃん");
             }
           }
           else
           {
-            throw new Error("Twitter V2 のアクセストークンが無効だにゃん。");
+            throw new Error("Twitter V2 のアクセストークンが無効だにゃん");
           }
         }
       }
@@ -95,7 +95,6 @@ function updateMixiToken(config)
   {
     config.HidenovMixiSender.mixi.refresh_token = tokens.refresh_token ;
     config.HidenovMixiSender.mixi.access_token = tokens.access_token;
-    saveConfig(config);
     return true ;
   }
   else
@@ -138,20 +137,20 @@ function pkceChallengeVerifier(config)
 {
   let code_challenge = config.HidenovMixiSender.twitter.code_challenge ;
   let code_verifier = config.HidenovMixiSender.twitter.code_verifier ;
-  if (code_verifier.length === 0)
+  if(code_verifier.length === 0)
   {
-    var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
-    for (var i = 0; i < 128; i++) {
+    const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+    for(let i = 0; i < 128; i++)
+    {
       code_verifier += possible.charAt(Math.floor(Math.random() * possible.length));
     }
-    var sha256Hash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, code_verifier)
+    const sha256Hash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, code_verifier)
     code_challenge = Utilities.base64Encode(sha256Hash)
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '')
     config.HidenovMixiSender.twitter.code_verifier = code_verifier ;
     config.HidenovMixiSender.twitter.code_challenge = code_challenge ;
-    saveConfig(config);
   }
   return { code_challenge : code_challenge, code_verifier : code_verifier };
 }
@@ -172,9 +171,7 @@ function getTimelines(config, prevTLs)
   };
   let tls = {"tls":{}};
 
-  try
-  {
-    const timeline = UrlFetchApp.fetch(get_timeline_url, options).getContentText();
+  const timeline = UrlFetchApp.fetch(get_timeline_url, options).getContentText();
 /* for debug
     const folder = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty("folder_id")) ;
     const files = folder.getFilesByName("timeline.json");
@@ -188,52 +185,46 @@ function getTimelines(config, prevTLs)
       folder.createFile("timeline.json", timeline);
     }
 */
-    const timeline_json = JSON.parse(timeline);
-    let reply_id = "";
-    if(Array.isArray(timeline_json)===true)
+  const timeline_json = JSON.parse(timeline);
+  let reply_id = "";
+  if(Array.isArray(timeline_json)===true)
+  {
+    for(let i = 0; i < timeline_json.length; i++)
     {
-      for (let i = 0; i < timeline_json.length; i++)
+      const item = timeline_json[i];
+      tls.tls.user_id = item.user.id;
+      tls.tls[item.id] = {};
+      tls.tls[item.id].created_at = item.created_at ;
+      tls.tls[item.id].text = item.text;
+      tls.tls[item.id].twitter_id = getTwitterIDfromPrevTLs(item.id, null, prevTLs);
+      reply_id = tls.tls[item.id].twitter_id;
+      tls.tls[item.id].comments = {} ;
+      if(item.reply_count > 0)
       {
-        const item = timeline_json[i];
-        tls.tls.user_id = item.user.id;
-        tls.tls[item.id] = {};
-        tls.tls[item.id].created_at = item.created_at ;
-        tls.tls[item.id].text = getText(getPhotoIdFromText(item.text),item.text);
-        tls.tls[item.id].twitter_id = getTwitterIDfromPrevTLs(item.id, null, prevTLs);
-        reply_id = tls.tls[item.id].twitter_id;
-        tls.tls[item.id].comments = {} ;
-        if(item.reply_count > 0)
+        const comments = UrlFetchApp.fetch(get_comment_url+item.id.toString(), options).getContentText();
+        const comments_json = JSON.parse(comments);
+        if(Array.isArray(comments_json) === true)
         {
-          const comments = UrlFetchApp.fetch(get_comment_url+item.id.toString(), options).getContentText();
-          const comments_json = JSON.parse(comments);
-          if(Array.isArray(comments_json) === true)
+          for(let j = 0; j < comments_json.length; j++)
           {
-            for (let j = 0; j < comments_json.length; j++)
+            const comment = comments_json[j];
+            if(comment.user.id === tls.tls.user_id)
             {
-              const comment = comments_json[j];
-              if( comment.user.id === tls.tls.user_id)
-              {
-                tls.tls[item.id].comments[comment.id] = {};
-                tls.tls[item.id].comments[comment.id].created_at = comment.created_at ;
-                tls.tls[item.id].comments[comment.id].text = comment.text
-                tls.tls[item.id].comments[comment.id].reply_id = reply_id ;
-                tls.tls[item.id].comments[comment.id].twitter_id = getTwitterIDfromPrevTLs(item.id, comment.id, prevTLs);
-                reply_id = tls.tls[item.id].comments[comment.id].twitter_id ;
-              }
+              tls.tls[item.id].comments[comment.id] = {};
+              tls.tls[item.id].comments[comment.id].created_at = comment.created_at ;
+              tls.tls[item.id].comments[comment.id].text = comment.text
+              tls.tls[item.id].comments[comment.id].reply_id = reply_id ;
+              tls.tls[item.id].comments[comment.id].twitter_id = getTwitterIDfromPrevTLs(item.id, comment.id, prevTLs);
+              reply_id = tls.tls[item.id].comments[comment.id].twitter_id ;
             }
           }
         }
       }
     }
-    else
-    {
-      console.log("取得したつぶやきが配列になってないにゃん。たぶんつぶやきが存在しないか、応答の形式がおかしいにゃん");
-    }
   }
-  catch( error )
+  else
   {
-    console.log("例外を握りつぶしています / Exception = " + error + "\n" + error.stack);
-    tls = {};
+    console.log("取得したつぶやきが配列になってないにゃん。たぶんつぶやきが存在しないか、応答の形式がおかしいにゃん");
   }
   return tls;
 }
@@ -242,7 +233,7 @@ function getTwitterIDfromPrevTLs( itemID, commentID, prevTLs)
 {
   // 前回の Timeline に紐づく Twitter の ID を返す。存在しなければ長さ 0 の文字列を返す。
   let twitter_id = "";
-  if(commentID===null)
+  if(commentID === null)
   {
     if(prevTLs?.tls?.[itemID]?.twitter_id !== undefined)
     {
@@ -264,13 +255,13 @@ function getPhotoIdFromText(urlString)
   const target_prefix = 'http://photo.mixi.jp/view_photo.pl';
   const id_prefix = 'photo_id=';
 
-  if (urlString.indexOf(target_prefix) === 0)
+  if(urlString.indexOf(target_prefix) === 0)
   {
     const start_index = urlString.indexOf(id_prefix);
     const end_index = urlString.indexOf(' ', urlString.indexOf(id_prefix));
     if (start_index !== -1 && end_index !== -1)
     {
-      var id = urlString.substr(start_index + id_prefix.length, end_index - start_index - id_prefix.length);
+      const id = urlString.substr(start_index + id_prefix.length, end_index - start_index - id_prefix.length);
       return id;
     }
   }
@@ -283,7 +274,7 @@ function getText(photoID, urlString)
   let temp_text = photoID === null ? urlString : urlString.substr(urlString.indexOf(' '));
   let adjusted_text = "", count = 0;
 
-  for (let i = 0; i < temp_text.length && count < 280; i++)
+  for(let i = 0; i < temp_text.length && count < 280; i++)
   {
     let char = temp_text[i], code = char.charCodeAt(0);
     count += ((code >= 0x00 && code < 0x81) || code == 0xf8f0 || (code >= 0xff61 && code < 0xffa0) || (code >= 0xf8f1 && code < 0xf8f4)) ? 1 : 2;
@@ -296,9 +287,9 @@ function getUpdates(config, TLs)
 {
   let updates = {latest_update:new Date(0), timelines:[]};
   const last_update = new Date(config.HidenovMixiSender.mixi.last_update);
-  for (let mixi_id in TLs.tls)
+  for(let mixi_id in TLs.tls)
   {
-    if (TLs.tls.hasOwnProperty(mixi_id))
+    if(TLs.tls.hasOwnProperty(mixi_id))
     {
       let tl = TLs.tls[mixi_id];
       const created_at = new Date(tl.created_at);
@@ -318,9 +309,9 @@ function getUpdates(config, TLs)
         timeline.text = getText(timeline.photo_id,tl.text);
         updates.timelines.unshift(timeline) ;
       }
-      for (let comment_id in TLs.tls[mixi_id].comments)
+      for(let comment_id in TLs.tls[mixi_id].comments)
       {
-        if (TLs.tls[mixi_id].comments.hasOwnProperty(comment_id))
+        if(TLs.tls[mixi_id].comments.hasOwnProperty(comment_id))
         {
           let comment = TLs.tls[mixi_id].comments[comment_id];
           const comment_created_at = new Date(comment.created_at);
@@ -361,7 +352,7 @@ function getPhoto(config)
       }
     };
 
-    json = UrlFetchApp.fetch(get_photo_url, options).getContentText();
+    const json = UrlFetchApp.fetch(get_photo_url, options).getContentText();
     const photo_json = JSON.parse(json);
     let photo = {};
     for( let i = 0; i< photo_json.entry.length; i++)
@@ -378,7 +369,7 @@ function postTwitter(config, updates, photo, TLs)
   let rc = true ;
   let reply_id = "";
   const oauth_v2_json = JSON.parse(config.HidenovMixiSender.twitter.oauth_v2) ;
-  for (let i in updates.timelines)
+  for(let i in updates.timelines)
   {
     let media_id_string = null;
 
@@ -428,7 +419,7 @@ function uploadImage(config, imgUrl)
   try
   {
     const service_v1 = getServiceV1(config);
-    if (service_v1.hasAccess())
+    if(service_v1.hasAccess())
     {
       const end_point_media = "https://upload.twitter.com/1.1/media/upload.json";
       const img_blob = UrlFetchApp.fetch(imgUrl).getBlob();
@@ -498,7 +489,7 @@ function loadConfig()
   if(property_config !== null)
   {
     const json = JSON.parse(property_config);
-    if( json !== null )
+    if(json !== null)
     {
       return json;
     }
@@ -519,13 +510,13 @@ function loadJSONFile(fileName, defaultJSON)
     if(files.hasNext())
     {
       const file = files.next();
-      if (file.getMimeType() === 'application/json')
+      if(file.getMimeType() === 'application/json')
       {
         const content = file.getBlob().getDataAsString();
         if(content !== null)
         {
           const json = JSON.parse(content);
-          if( json !== null )
+          if(json !== null)
           {
             return json;
           }
@@ -546,7 +537,7 @@ function loadJSONFile(fileName, defaultJSON)
     }
     else
     {
-      if( defaultJSON !== null )
+      if(defaultJSON !== null)
       {
         return defaultJSON;
       }
@@ -562,22 +553,22 @@ function loadJSONFile(fileName, defaultJSON)
   }
 }
 
-function saveConfig( config )
+function saveConfig(config)
 {
   let error = "";
-  for( let retry = 10; retry > 0; retry-- )
+  for(let retry = 10; retry > 0; retry--)
   {
     try
     {
       PropertiesService.getScriptProperties().setProperty("config", JSON.stringify(config));
       break;
     }
-    catch( error_property )
+    catch(error_property)
     {
       if(retry === 0)
       {
         error = "Exception in saveConfig / Retry = " + retry.toString() + " / Reason = " + error_property;
-        console.log( error ) ;
+        console.log(error) ;
       }
       Utilities.sleep(3000);
     }
@@ -588,10 +579,10 @@ function saveConfig( config )
 function saveJSONFile(fileName, json)
 {
   const folder_id = PropertiesService.getScriptProperties().getProperty("folder_id");
-  if( folder_id !== null )
+  if(folder_id !== null)
   {
     const folder = DriveApp.getFolderById(folder_id) ;
-    if( folder !== null )
+    if(folder !== null)
     {
       const files = folder.getFilesByName(fileName);
       while (files.hasNext())
@@ -599,22 +590,22 @@ function saveJSONFile(fileName, json)
         let file = files.next();
         if (file.getMimeType() === 'application/json')
         {
-          folder.removeFile(file);
+          file.setTrashed(true);
         }
       }
-      for( let retry = 10; retry > 0; retry-- )
+      for(let retry = 10; retry > 0; retry--)
       {
         try
         {
-          folder.createFile(fileName, JSON.stringify(json, null, "    "));
+          folder.createFile(fileName, JSON.stringify(json, null, 4));
           break;
         }
-        catch( error_file )
+        catch(error_file)
         {
           if(retry === 0)
           {
-            error = "Exception in saveConfig( " + fileName + " ) / Reason = " + error_file + "\n" + JSON.stringify(json, null, "    ") ;
-            throw new Error( error ) ;
+            error = "Exception in saveConfig( " + fileName + " ) / Reason = " + error_file + "\n" + JSON.stringify(json, null, 4) ;
+            throw new Error(error) ;
           }
           Utilities.sleep(3000);
         }
@@ -623,9 +614,9 @@ function saveJSONFile(fileName, json)
   }
 }
 
-function checkConfig( config )
+function checkConfig(config)
 {
-  if( config.error === undefined )
+  if(config.error === undefined)
   {
     if( config.HidenovMixiSender.mixi.consumer_key !== undefined && config.HidenovMixiSender.mixi.consumer_key.length > 0 &&
         config.HidenovMixiSender.mixi.consumer_secret !== undefined && config.HidenovMixiSender.mixi.consumer_secret.length > 0 &&
@@ -656,7 +647,6 @@ function checkConfig( config )
   }
   return false;
 }
-
 
 function reset()
 {
