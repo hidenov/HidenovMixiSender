@@ -8,7 +8,7 @@ mixi のつぶやきに投稿した内容を　Twitter に転送する GAS( Goog
 
 ## 使い方
 ### 準備するもの
-- 有効なクレジットカード（ 2023.6.20 現在課金は行われていない ）
+- 有効なクレジットカード（ 2023.07.08 現在 mixi から課金は行われていない ）
 - Docomo、AU、Softbank 何れかのキャリアが提供している MMS のメールアドレス
 - Google Drive / GMail のアカウント
 - mixi のアカウント
@@ -34,15 +34,14 @@ mixi のつぶやきに投稿した内容を　Twitter に転送する GAS( Goog
 6. 手順 5. で作成したフォルダのアドレスバーから、folder/ 以降の文字列を　folder_id としてメモする。
  ![Alt text](image-4.png)
 7. <p>手順 5. で作成したフォルダに、手順 4.でダウンロードした config.json.org をアップロードする。</p>
-8.  <p>config.json.org をコピーし、config.json にリネームする。</p>
-9. 手順 5. で作成したフォルダで、Google Apps Script のプロジェクトを新しく作る。
+8. 手順 5. で作成したフォルダで、Google Apps Script のプロジェクトを新しく作る。
   ![Alt text](image-3.png)
-10.  <p>スクリプト名を HidenovMixiSender 変更し、手順 4.でダウンロードした HidenovMixiSender.gs の内容をコピペする。</p> 
-11. スクリプトプロパティに folder_id を作成し、値に手順 6. でメモした folder_id を転記する。
-12. プロジェクトを新しく Web アプリとしてデプロイする。デプロイした Web アプリの URL はメモしておく。
-13.  手順 9. ～ 12. を他の３つの .gs ファイルに対しても同様に実行する。
-14.  <p>Mixi の Partner Dashboard から新規サービスを追加する。この時、リダイレクト URL には手順 13. でメモした HidenovMixiSenderRedirect.gs の Web アプリの URL を設定する。</p>
-15.  <p>Twitter の Delevper Portal から新しいアプリを作成する。この時、
+9.  <p>スクリプト名を HidenovMixiSender 変更し、手順 4.でダウンロードした HidenovMixiSender.gs の内容をコピペする。</p> 
+10. スクリプトプロパティに folder_id を作成し、値に手順 6. でメモした folder_id を転記する。
+11. プロジェクトを新しく Web アプリとしてデプロイする。デプロイした Web アプリの URL はメモしておく。
+12.  手順 9. ～ 12. を他の３つの .gs ファイルに対しても同様に実行する。
+13.  <p>Mixi の Partner Dashboard から新規サービスを追加する。この時、リダイレクト URL には手順 11. でメモした HidenovMixiSenderRedirect.gs の Web アプリの URL を設定する。</p>
+14.  <p>Twitter の Delevper Portal から新しいアプリを作成する。この時、
      - App psermissions は　Read and Write を選ぶ
      - Type of App は Web App, Automated App or Bot を選ぶ
      - App info の Callback URI / Redirect URL は下記の要領で設定する。
@@ -51,7 +50,9 @@ mixi のつぶやきに投稿した内容を　Twitter に転送する GAS( Goog
 
   ![Alt text](image-7.png)
 
-16.  <p>config.json.org にクレデンシャル情報を記載する。</p>
+15.  <p>config.json.org にクレデンシャル情報を記載する。</p>
+16.  <p>config.json.org をコピーし、config.json にリネームする。</p>
+  
 ### 大雑把な使い方
 1. デプロイした HidenovTwitterAuth の URL を開く。
 2. 上手く行けば URL が二つ表示されるので、それぞれ別窓で開いて Twitter の承認処理を行う。
@@ -62,6 +63,6 @@ mixi のつぶやきに投稿した内容を　Twitter に転送する GAS( Goog
      - デプロイ時に実行は head
      - イベントのソースは 時間主導型
      - トリガーのタイプは 分ベースのタイマー
-     - 時間間隔は５分。１分にするのはちょっとお勧めしない．．．
+     - 無料版 GMail を使用している場合は時間間隔は５分以上に。１分にすると１日の GAS の実行制限を越えます。．
 
   
