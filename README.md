@@ -16,8 +16,10 @@ mixi のつぶやきに投稿した内容を　Twitter に転送する GAS( Goog
 ### 大雑把な準備の手順
 1. mixi Platform 利用登録を行う。
   下記の Partner Dashboard が表示できるようになればＯＫです。
+  - [mixi Platform 利用登録方法](./mixi_registration.md)
 ![mixi Partner Dashboard](image.png)
 2. Twitter の Developer Portal に登録を行う。
+  - [Twitter 開発者プラットフォーム利用登録方法](./twitter_dev_registration.md)
 　下記の Developer Portal が表示できるようになればＯＫです。
 ![Twitter Developer Portal](image-1.png)
 3. GAS のプロジェクトが作れるようになる。
