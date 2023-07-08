@@ -42,8 +42,10 @@ mixi のつぶやきに投稿した内容を　Twitter に転送する GAS( Goog
 10. スクリプトプロパティに folder_id を作成し、値に手順 6. でメモした folder_id を転記する。
 11. プロジェクトを新しく Web アプリとしてデプロイする。デプロイした Web アプリの URL はメモしておく。
 12.  手順 9. ～ 12. を他の３つの .gs ファイルに対しても同様に実行する。
-13.  <p>Mixi の Partner Dashboard から新規サービスを追加する。この時、リダイレクト URL には手順 11. でメモした HidenovMixiSenderRedirect.gs の Web アプリの URL を設定する。</p>
-14.  <p>Twitter の Delevper Portal から新しいアプリを作成する。この時、
+13.  <p>mixi の Partner Dashboard から新規サービスを追加する。</p>
+      - [mixi 新規サービス追加方法](./mixi_app_registration.md)
+14.  <p>Twitter の Delevper Portal から新しいプロジェクトとアプリを作成する。
+     - [Twitter アプリ追加方法](./twitter_app_registration.md)
      - App psermissions は　Read and Write を選ぶ
      - Type of App は Web App, Automated App or Bot を選ぶ
      - App info の Callback URI / Redirect URL は下記の要領で設定する。
@@ -52,8 +54,8 @@ mixi のつぶやきに投稿した内容を　Twitter に転送する GAS( Goog
 
   ![Alt text](image-7.png)
 
-15.  <p>config.json.org にクレデンシャル情報を記載する。</p>
-16.  <p>config.json.org をコピーし、config.json にリネームする。</p>
+15.   <p>config.json.org にクレデンシャル情報を記載する。</p>
+16.   <p>config.json.org をコピーし、config.json にリネームする。</p>
   
 ### 大雑把な使い方
 1. デプロイした HidenovTwitterAuth の URL を開く。
